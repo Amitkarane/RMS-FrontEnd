@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>RMS — Restaurant Management System (Demo)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Subtle springy micro-animations */
+    .pop { transition: transform .15s ease; }
+    .pop:active { transform: scale(0.98); }
+    .btn { transition: all .2s ease; }
+    .btn:hover { filter: brightness(0.95); }
+    .chip { transition: all .2s ease; }
+    .chip:hover { transform: translateY(-1px); }
+    .tab-active { background: rgba(255,255,255,.15); }
+    .glass { background: rgba(255,255,255,.08); backdrop-filter: blur(8px); }
+    .fade-in { animation: fadeIn .35s ease; }
+    @keyframes fadeIn { from {opacity:0;transform:translateY(6px)} to {opacity:1;transform:translateY(0)} }
+    .scroll-shadow { mask-image: linear-gradient(to bottom, transparent, black 12px, black calc(100% - 12px), transparent); }
+      /* Glassy dropdowns */
+    .glass-select { background: rgba(255,255,255,.10); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,.10); }
+    .glass-select option { background: rgba(2,6,23,.92); color: #e5e7eb; }
+    .glass-select:focus { outline: none; box-shadow: 0 0 0 2px rgba(217,70,239,.35); }
+  </style>
+</head>
+<body class="min-h-screen text-slate-100 bg-gradient-to-br from-indigo-950 via-purple-900 to-fuchsia-900">
+  <!-- Demo banner
+  <div class="w-full bg-amber-500/90 text-amber-950 text-sm md:text-base">
+    <div class="max-w-7xl mx-auto px-4 py-2 flex items-start md:items-center gap-2">
+      <span class="text-lg">⚠️</span>
+      <p class="leading-snug">
+        Demo only: your data is saved in this browser. No accounts, no emails, no servers. Refresh or clear storage to reset.
+      </p>
+    </div>
+  </div> -->
+
+  <!-- Top Nav -->
+  <header class="sticky top-0 z-50 glass border-b border-white/10">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="h-10 w-10 rounded-xl bg-gradient-to-br from-fuchsia-500 to-indigo-500 grid place-items-center shadow-lg">
+          <span class="text-white text-xl">🍽️</span>
+        </div>
+        <div>
+          <h1 class="text-xl md:text-2xl font-semibold tracking-wide">RMS — Restaurant Management System</h1>
+          <p class="text-slate-300 text-xs md:text-sm">All-in-one panels for Menu, Waiter, Chef, Supervisor & Admin</p>
+        </div>
+      </div>
+      <nav class="hidden md:flex items-center gap-2">
+        <button data-nav="menu" class="btn px-3 py-2 rounded-lg chip tab-active hover:bg-white/20">Menu</button>
+        <button data-nav="waiter" class="btn px-3 py-2 rounded-lg chip hover:bg-white/20">Waiter</button>
+        <button data-nav="chef" class="btn px-3 py-2 rounded-lg chip hover:bg-white/20">Chef</button>
+        <button data-nav="supervisor" class="btn px-3 py-2 rounded-lg chip hover:bg-white/20">Supervisor</button>
+        <button data-nav="admin" class="btn px-3 py-2 rounded-lg chip hover:bg-white/20">Admin</button>
+      </nav>
+
+      <div class="md:hidden">
+        <select id="mobileNav" class="glass-select rounded-lg px-3 py-2">
+          <option value="menu">Menu</option>
+          <option value="waiter">Waiter</option>
+          <option value="chef">Chef</option>
+          <option value="supervisor">Supervisor</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6 space-y-10">
+    <!-- MENU PANEL (Customer-facing) -->
+    <section id="panel-menu" class="fade-in space-y-5">
+      <div class="flex flex-col md:flex-row md:items-end gap-3 justify-between">
+        <div>
+          <h2 class="text-2xl font-semibold">Menu</h2>
+          <p class="text-slate-300 text-sm">Pick items, choose your table, and place your order.</p>
+        </div>
+        <div class="flex flex-wrap gap-2 items-center">
+          <label class="text-sm text-slate-300">Table</label>
+          <select id="menuTableSelect" class="glass-select rounded-lg px-3 py-2"></select>
+
+          <div class="relative">
+            <input id="searchInput" placeholder="Search dishes..." class="bg-white/10 border border-white/10 rounded-lg pl-10 pr-3 py-2 w-64" />
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300">🔎</span>
+          </div>
+
+          <div id="categoryChips" class="flex flex-wrap gap-2"></div>
+        </div>
+      </div>
+
+      <div class="grid md:grid-cols-3 lg:grid-cols-4 gap-4" id="menuGrid"></div>
+
+      <!-- Cart -->
+      <div class="lg:grid lg:grid-cols-3 gap-4">
+        <div class="lg:col-span-2"></div>
+        <div class="glass rounded-2xl border border-white/10 p-4 sticky bottom-4">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-lg font-semibold">Your Order</h3>
+            <button id="clearCartBtn" class="text-rose-300 hover:text-rose-200 text-sm">Clear</button>
+          </div>
+          <div id="cartItems" class="max-h-64 overflow-auto pr-2 scroll-shadow"></div>
+          <div class="flex items-center justify-between mt-3 border-t border-white/10 pt-3">
+            <div class="text-slate-300">Total</div>
+            <div id="cartTotal" class="text-xl font-semibold">$0.00</div>
+          </div>
+          <button id="placeOrderBtn" class="btn mt-4 w-full px-4 py-3 rounded-xl bg-gradient-to-r from-fuchsia-500 to-indigo-500 font-semibold pop shadow-lg">Place Order</button>
+          <p class="text-xs text-slate-400 mt-2">Orders go to the kitchen and your table status updates automatically.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- WAITER PANEL -->
+    <section id="panel-waiter" class="hidden fade-in space-y-6">
+      <div class="flex flex-col md:flex-row md:items-end justify-between gap-3">
+        <div>
+          <h2 class="text-2xl font-semibold">Waiter Panel</h2>
+          <p class="text-slate-300 text-sm">Track tables, send orders, and manage bills.</p>
+        </div>
+        <div class="flex gap-2 items-center">
+          <label class="text-sm text-slate-300">I am</label>
+          <select id="waiterSelect" class="glass-select rounded-lg px-3 py-2"></select>
+          <button id="waiterAssignSelf" class="btn px-3 py-2 rounded-lg bg-white/10 border border-white/10 pop">Assign me to selected table</button>
+        </div>
+      </div>
+
+      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4" id="waiterTables"></div>
+
+      <div class="glass rounded-2xl border border-white/10 p-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-semibold">Orders Needing Action</h3>
+          <div class="flex gap-2">
+            <button class="chip px-3 py-1 rounded-full bg-white/10 text-sm" data-waiter-filter="All">All</button>
+            <button class="chip px-3 py-1 rounded-full bg-white/10 text-sm" data-waiter-filter="New">New</button>
+            <button class="chip px-3 py-1 rounded-full bg-white/10 text-sm" data-waiter-filter="Ready">Ready</button>
+            <button class="chip px-3 py-1 rounded-full bg-white/10 text-sm" data-waiter-filter="Served">Served</button>
+          </div>
+        </div>
+        <div id="waiterOrders" class="grid md:grid-cols-2 lg:grid-cols-3 gap-3 mt-4"></div>
+      </div>
+    </section>
+
+    <!-- CHEF PANEL -->
+    <section id="panel-chef" class="hidden fade-in space-y-6">
+      <div class="flex flex-col md:flex-row md:items-end justify-between gap-3">
+        <div>
+          <h2 class="text-2xl font-semibold">Chef Panel</h2>
+          <p class="text-slate-300 text-sm">See incoming tickets and update progress.</p>
+        </div>
+        <div class="flex gap-2">
+          <button class="chip px-3 py-2 rounded-full bg-white/10" data-chef-tab="queue">Queue</button>
+          <button class="chip px-3 py-2 rounded-full bg-white/10" data-chef-tab="cooking">Cooking</button>
+          <button class="chip px-3 py-2 rounded-full bg-white/10" data-chef-tab="ready">Ready</button>
+        </div>
+      </div>
+
+      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4" id="chefTickets"></div>
+
+      <div class="glass rounded-2xl border border-white/10 p-4">
+        <h3 class="text-lg font-semibold">Table Tracking</h3>
+        <div id="chefTableTracking" class="grid md:grid-cols-2 lg:grid-cols-3 gap-3 mt-4"></div>
+      </div>
+    </section>
+
+    <!-- SUPERVISOR PANEL -->
+    <section id="panel-supervisor" class="hidden fade-in space-y-6">
+      <div>
+        <h2 class="text-2xl font-semibold">Supervisor Dashboard</h2>
+        <p class="text-slate-300 text-sm">Quick view of waiter activity, table tracking, and chef progress.</p>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-4">
+        <div class="glass rounded-2xl border border-white/10 p-4">
+          <div class="text-slate-300 text-sm">Active Tables</div>
+          <div id="svActiveTables" class="text-3xl font-bold mt-1">0</div>
+        </div>
+        <div class="glass rounded-2xl border border-white/10 p-4">
+          <div class="text-slate-300 text-sm">Orders in Kitchen</div>
+          <div id="svKitchenOrders" class="text-3xl font-bold mt-1">0</div>
+        </div>
+        <div class="glass rounded-2xl border border-white/10 p-4">
+          <div class="text-slate-300 text-sm">Orders Ready</div>
+          <div id="svReadyOrders" class="text-3xl font-bold mt-1">0</div>
+        </div>
+      </div>
+
+      <div class="glass rounded-2xl border border-white/10 p-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-semibold">Waiter Status</h3>
+          <p class="text-sm text-slate-300">Assigned tables & open orders</p>
+        </div>
+        <div id="svWaiterStatus" class="grid md:grid-cols-2 lg:grid-cols-3 gap-3 mt-4"></div>
+      </div>
+
+      <div class="glass rounded-2xl border border-white/10 p-4">
+        <h3 class="text-lg font-semibold">Table Tracking</h3>
+        <div id="svTableTracking" class="grid md:grid-cols-2 lg:grid-cols-3 gap-3 mt-4"></div>
+      </div>
+    </section>
+
+    <!-- ADMIN PANEL -->
+    <section id="panel-admin" class="hidden fade-in space-y-6">
+      <div>
+        <h2 class="text-2xl font-semibold">Admin Panel</h2>
+        <p class="text-slate-300 text-sm">Manage dishes, staff, orders, and tables.</p>
+      </div>
+
+      <div class="flex flex-wrap gap-2">
+        <button data-admin-tab="dishes" class="chip px-3 py-2 rounded-full bg-white/10">Dishes</button>
+        <button data-admin-tab="staff" class="chip px-3 py-2 rounded-full bg-white/10">Staff</button>
+        <button data-admin-tab="tables" class="chip px-3 py-2 rounded-full bg-white/10">Tables</button>
+        <button data-admin-tab="orders" class="chip px-3 py-2 rounded-full bg-white/10">Orders</button>
+      </div>
+
+      <!-- Dishes -->
+      <div id="adminDishes" class="space-y-4">
+        <div class="glass rounded-2xl border border-white/10 p-4">
+          <h3 class="text-lg font-semibold mb-3">Add Dish</h3>
+          <form id="dishForm" class="grid md:grid-cols-3 gap-3">
+            <input required id="dishName" placeholder="Dish name (e.g., Margherita Pizza)" class="bg-white/10 border border-white/10 rounded-lg px-3 py-2" />
+            <input required id="dishPrice" type="number" min="0" step="0.01" placeholder="Price (e.g., 12.99)" class="bg-white/10 border border-white/10 rounded-lg px-3 py-2" />
+            <input required id="dishCategory" placeholder="Category (e.g., Pizza)" class="bg-white/10 border border-white/10 rounded-lg px-3 py-2" />
+            <input id="dishEmoji" placeholder="Emoji (e.g., 🍕)" class="bg-white/10 border border-white/10 rounded-lg px-3 py-2" />
+            <select id="dishVeg" class="glass-select rounded-lg px-3 py-2">
+              <option value="false">Non-veg</option>
+              <option value="true">Veg</option>
+            </select>
+            <select id="dishSpicy" class="glass-select rounded-lg px-3 py-2">
+              <option value="false">Not spicy</option>
+              <option value="true">Spicy</option>
+            </select>
+            <input id="dishImage" type="file" accept="image/*" class="bg-white/10 border border-white/10 rounded-lg px-3 py-2 md:col-span-2" />
+            <textarea id="dishDesc" placeholder="Short description" class="bg-white/10 border border-white/10 rounded-lg px-3 py-2 md:col-span-2"></textarea>
+            <button class="btn px-4 py-2 rounded-lg bg-gradient-to-r from-fuchsia-500 to-indigo-500 font-semibold pop">Add Dish</button>
+          </form>
+        </div>
+        <div class="glass rounded-2xl border border-white/10 p-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-semibold">Dishes</h3>
+            <div class="text-sm text-slate-300" id="dishCount"></div>
+          </div>
+          <div id="dishList" class="grid md:grid-cols-2 lg:grid-cols-3 gap-3 mt-3"></div>
+        </div>
+      </div>
+
+      <!-- Staff -->
+      <div id="adminStaff" class="hidden space-y-4">
+        <div class="glass rounded-2xl border border-white/10 p-4">
+          <h3 class="text-lg font-semibold mb-3">Add Staff</h3>
+          <form id="staffForm" class="grid md:grid-cols-4 gap-3">
+            <input required id="staffName" placeholder="Full name" class="bg-white/10 border border-white/10 rounded-lg px-3 py-2" />
+            <select id="staffRole" class="glass-select rounded-lg px-3 py-2">
+              <option>Waiter</option>
+              <option>Chef</option>
+              <option>Supervisor</option>
+              <option>Admin</option>
+            </select>
+            <input id="staffContact" placeholder="Contact (optional)" class="bg-white/10 border border-white/10 rounded-lg px-3 py-2" />
+            <button class="btn px-4 py-2 rounded-lg bg-gradient-to-r from-fuchsia-500 to-indigo-500 font-semibold pop">Add Staff</button>
+          </form>
+        </div>
+        <div class="glass rounded-2xl border border-white/10 p-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-semibold">Staff</h3>
+            <div class="text-sm text-slate-300" id="staffCount"></div>
+          </div>
+          <div id="staffList" class="grid md:grid-cols-2 lg:grid-cols-3 gap-3 mt-3"></div>
+        </div>
+      </div>
+
+      <!-- Tables -->
+      <div id="adminTables" class="hidden space-y-4">
+        <div class="glass rounded-2xl border border-white/10 p-4">
+          <h3 class="text-lg font-semibold mb-3">Add Table</h3>
+          <form id="tableForm" class="grid md:grid-cols-4 gap-3">
+            <input required id="tableName" placeholder="Table name (e.g., T1)" class="bg-white/10 border border-white/10 rounded-lg px-3 py-2" />
+            <input required id="tableSeats" type="number" min="1" step="1" placeholder="Seats" class="bg-white/10 border border-white/10 rounded-lg px-3 py-2" />
+            <select id="tableWaiter" class="glass-select rounded-lg px-3 py-2"></select>
+            <button class="btn px-4 py-2 rounded-lg bg-gradient-to-r from-fuchsia-500 to-indigo-500 font-semibold pop">Add Table</button>
+          </form>
+        </div>
+        <div class="glass rounded-2xl border border-white/10 p-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-semibold">Tables</h3>
+            <div class="text-sm text-slate-300" id="tableCount"></div>
+          </div>
+          <div id="tableList" class="grid md:grid-cols-2 lg:grid-cols-3 gap-3 mt-3"></div>
+        </div>
+      </div>
+
+      <!-- Orders -->
+      <div id="adminOrders" class="hidden space-y-4">
+        <div class="glass rounded-2xl border border-white/10 p-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-semibold">All Orders</h3>
+            <div class="flex flex-wrap items-center gap-2">
+              <input type="date" id="adminStartDate" class="glass-select rounded-lg px-3 py-2" />
+              <span class="text-slate-300 text-sm">to</span>
+              <input type="date" id="adminEndDate" class="glass-select rounded-lg px-3 py-2" />
+              <select id="adminOrderFilter" class="glass-select rounded-lg px-3 py-2">
+                <option>All</option>
+                <option>New</option>
+                <option>Sent to Kitchen</option>
+                <option>Cooking</option>
+                <option>Ready</option>
+                <option>Served</option>
+                <option>Paid</option>
+                <option>Cancelled</option>
+              </select>
+              <button id="exportCSV" class="btn px-3 py-2 rounded-lg bg-white/10 border border-white/10 pop">Download CSV</button>
+            </div>
+          </div>
+          <div id="adminOrderList" class="grid md:grid-cols-2 lg:grid-cols-3 gap-3 mt-3"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- <footer class="max-w-7xl mx-auto px-4 py-10 text-center text-slate-300">
+    <p>Made with ❤️ by Canva Code — Demo RMS</p>
+  </footer> -->
+
+  <script>
+    // Data store in localStorage (Demo only)
+    const KEY = 'rmsData';
+    const now = () => new Date().toISOString();
+
+    const seedData = {
+      dishes: [
+        {id:'d1', name:'Margherita Pizza', price:12.99, category:'Pizza', desc:'Classic tomato, mozzarella, basil', veg:true, spicy:false, emoji:'🍕'},
+        {id:'d2', name:'Spaghetti Carbonara', price:13.49, category:'Pasta', desc:'Creamy sauce with pancetta', veg:false, spicy:false, emoji:'🍝'},
+        {id:'d3', name:'Caesar Salad', price:9.50, category:'Salad', desc:'Crisp romaine with dressing', veg:false, spicy:false, emoji:'🥗'},
+        {id:'d4', name:'Veggie Burger', price:11.00, category:'Burger', desc:'Grilled patty with fresh veggies', veg:true, spicy:false, emoji:'🍔'},
+        {id:'d5', name:'Salmon Sushi', price:14.25, category:'Sushi', desc:'Fresh salmon nigiri', veg:false, spicy:false, emoji:'🍣'},
+        {id:'d6', name:'Chocolate Cake', price:6.00, category:'Dessert', desc:'Rich, moist, and decadent', veg:true, spicy:false, emoji:'🍰'},
+      ],
+      staff: [
+        {id:'s1', name:'Ava', role:'Waiter', contact:'', active:true},
+        {id:'s2', name:'Leo', role:'Waiter', contact:'', active:true},
+        {id:'s3', name:'Maya', role:'Chef', contact:'', active:true},
+        {id:'s4', name:'Zane', role:'Supervisor', contact:'', active:true},
+      ],
+      tables: [
+        {id:'t1', name:'T1', seats:2, status:'Free', waiterId:'s1'},
+        {id:'t2', name:'T2', seats:4, status:'Free', waiterId:'s1'},
+        {id:'t3', name:'T3', seats:4, status:'Free', waiterId:'s2'},
+        {id:'t4', name:'T4', seats:6, status:'Free', waiterId:'s2'},
+        {id:'t5', name:'T5', seats:2, status:'Free', waiterId:null},
+        {id:'t6', name:'T6', seats:2, status:'Free', waiterId:null},
+      ],
+      orders: []
+    };
+
+    function load() {
+      const raw = localStorage.getItem(KEY);
+      if (!raw) {
+        save(seedData);
+        return JSON.parse(JSON.stringify(seedData));
+      }
+      try { return JSON.parse(raw); } catch {
+        save(seedData);
+        return JSON.parse(JSON.stringify(seedData));
+      }
+    }
+    function save(data) { localStorage.setItem(KEY, JSON.stringify(data)); }
+    let db = load();
+
+    // Panels navigation
+    const sections = {
+      menu: document.getElementById('panel-menu'),
+      waiter: document.getElementById('panel-waiter'),
+      chef: document.getElementById('panel-chef'),
+      supervisor: document.getElementById('panel-supervisor'),
+      admin: document.getElementById('panel-admin'),
+    };
+    function showPanel(name) {
+      Object.entries(sections).forEach(([k, el])=>{
+        if (k === name) el.classList.remove('hidden'); else el.classList.add('hidden');
+      });
+      // Tab styling
+      document.querySelectorAll('header nav button').forEach(btn=>{
+        if (btn.getAttribute('data-nav') === name) btn.classList.add('tab-active'); else btn.classList.remove('tab-active');
+      });
+      const mobileNav = document.getElementById('mobileNav');
+      if (mobileNav) mobileNav.value = name;
+      renderAll();
+    }
+    document.querySelectorAll('header nav button').forEach(b=>b.addEventListener('click', ()=>showPanel(b.getAttribute('data-nav'))));
+    document.getElementById('mobileNav').addEventListener('change', (e)=>showPanel(e.target.value));
+
+    // Helpers
+    const currency = (n)=>'$'+(Number(n||0)).toFixed(2);
+    const uid = (p='id') => p + Math.random().toString(36).slice(2,8);
+    const getTable = (id)=> db.tables.find(t=>t.id===id);
+    const getStaff = (id)=> db.staff.find(s=>s.id===id);
+    const getDish = (id)=> db.dishes.find(d=>d.id===id);
+
+    // Menu panel state
+    const menuTableSelect = document.getElementById('menuTableSelect');
+    const searchInput = document.getElementById('searchInput');
+    const categoryChips = document.getElementById('categoryChips');
+    const menuGrid = document.getElementById('menuGrid');
+    const cartItems = document.getElementById('cartItems');
+    const cartTotal = document.getElementById('cartTotal');
+    const placeOrderBtn = document.getElementById('placeOrderBtn');
+    const clearCartBtn = document.getElementById('clearCartBtn');
+    let activeCategory = 'All';
+    let cart = {}; // {dishId: qty}
+
+    function getCategories() {
+      const cats = Array.from(new Set(db.dishes.map(d=>d.category))).sort();
+      return ['All', ...cats];
+    }
+
+    function renderMenuFilters() {
+      // Tables
+      menuTableSelect.innerHTML = db.tables.map(t=>`<option value="${t.id}">${t.name} • ${t.seats} seats</option>`).join('');
+      // Categories
+      const cats = getCategories();
+      categoryChips.innerHTML = cats.map(c=>{
+        const active = c===activeCategory ? 'bg-white/20' : 'bg-white/10';
+        return `<button class="chip px-3 py-1 rounded-full ${active}" data-cat="${c}">${c}</button>`;
+      }).join('');
+      categoryChips.querySelectorAll('button').forEach(b=>b.addEventListener('click', ()=>{
+        activeCategory = b.getAttribute('data-cat');
+        renderMenuGrid();
+      }));
+    }
+
+    function renderMenuGrid() {
+      const query = (searchInput.value||'').toLowerCase().trim();
+      const list = db.dishes.filter(d=>{
+        const inCat = activeCategory==='All' || d.category===activeCategory;
+        const inSearch = !query || d.name.toLowerCase().includes(query) || d.desc.toLowerCase().includes(query);
+        return inCat && inSearch;
+      });
+      menuGrid.innerHTML = list.map(d=>{
+        const q = cart[d.id]||0;
+        return `
+          <div class="glass rounded-2xl border border-white/10 p-4 flex flex-col justify-between">
+            <div class="flex items-start gap-3">
+              <div class="h-14 w-14 flex-shrink-0 rounded-xl overflow-hidden ring-1 ring-white/10 bg-white/5">
+                ${d.image?`<img src="${d.image}" alt="${d.name}" class="h-full w-full object-cover"/>`:`<div class="h-full w-full grid place-items-center text-xl">🍽️</div>`}
+              </div>
+              <div class="flex-1">
+                <div class="flex items-center justify-between">
+                  <h4 class="font-semibold">${d.name}</h4>
+                  <div class="text-fuchsia-300 font-semibold">${currency(d.price)}</div>
+                </div>
+                <p class="text-sm text-slate-300 mt-1">${d.desc||''}</p>
+                <div class="flex gap-2 mt-2">
+                  <span class="px-2 py-0.5 rounded-full text-xs bg-white/10">${d.category}</span>
+                  ${d.veg?'<span class="px-2 py-0.5 rounded-full text-xs bg-emerald-500/20 text-emerald-200">Veg</span>':''}
+                  ${d.spicy?'<span class="px-2 py-0.5 rounded-full text-xs bg-rose-500/20 text-rose-200">Spicy</span>':''}
+                </div>
+              </div>
+            </div>
+            <div class="flex items-center justify-between mt-3">
+              <div class="text-sm text-slate-300">Qty</div>
+              <div class="flex items-center gap-2">
+                <button class="btn px-3 py-1 rounded-lg bg-white/10 pop" data-minus="${d.id}">−</button>
+                <div class="w-8 text-center">${q}</div>
+                <button class="btn px-3 py-1 rounded-lg bg-white/10 pop" data-plus="${d.id}">+</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+      menuGrid.querySelectorAll('[data-plus]').forEach(b=>b.addEventListener('click', ()=>{
+        const id = b.getAttribute('data-plus');
+        cart[id] = (cart[id]||0)+1; renderCart(); renderMenuGrid();
+      }));
+      menuGrid.querySelectorAll('[data-minus]').forEach(b=>b.addEventListener('click', ()=>{
+        const id = b.getAttribute('data-minus');
+        cart[id] = Math.max(0,(cart[id]||0)-1); if(!cart[id]) delete cart[id]; renderCart(); renderMenuGrid();
+      }));
+    }
+
+    function renderCart() {
+      const items = Object.entries(cart).map(([id,qty])=>({dish:getDish(id), qty}));
+      cartItems.innerHTML = items.length? items.map(({dish, qty})=>`
+        <div class="flex items-center justify-between py-2">
+          <div>
+            <div class="font-medium">${dish.emoji||'🍽️'} ${dish.name}</div>
+            <div class="text-xs text-slate-300">${qty} × ${currency(dish.price)}</div>
+          </div>
+          <div class="font-semibold">${currency(dish.price*qty)}</div>
+        </div>
+      `).join('') : `<div class="text-sm text-slate-300">Your order is empty.</div>`;
+      const total = items.reduce((s,i)=>s+i.dish.price*i.qty,0);
+      cartTotal.textContent = currency(total);
+    }
+
+    placeOrderBtn.addEventListener('click', ()=>{
+      const tableId = menuTableSelect.value;
+      if (!tableId) return alert('Please choose a table first.');
+      const items = Object.entries(cart).map(([dishId,qty])=>({dishId, qty, note:''}));
+      if (!items.length) return alert('Your order is empty.');
+      const order = { id: uid('o'), tableId, items, status:'New', createdAt: now(), history:[{status:'New', at: now()}] };
+      db.orders.unshift(order);
+      const t = getTable(tableId);
+      t.status = 'Ordering';
+      save(db);
+      cart = {};
+      renderAll();
+      alert('Order placed! Waiter will send it to kitchen.');
+    });
+    clearCartBtn.addEventListener('click', ()=>{ cart={}; renderCart(); renderMenuGrid(); });
+    searchInput.addEventListener('input', renderMenuGrid);
+
+    // Waiter Panel
+    const waiterSelect = document.getElementById('waiterSelect');
+    const waiterTables = document.getElementById('waiterTables');
+    const waiterOrders = document.getElementById('waiterOrders');
+    const waiterAssignSelf = document.getElementById('waiterAssignSelf');
+    let waiterFilter = 'All';
+    let currentWaiterId = null;
+
+    document.querySelectorAll('[data-waiter-filter]').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        waiterFilter = b.getAttribute('data-waiter-filter');
+        // Visually highlight the chosen filter
+        document.querySelectorAll('[data-waiter-filter]').forEach(x=>x.classList.remove('bg-white/20'));
+        b.classList.add('bg-white/20');
+        renderWaiterOrders();
+      });
+    });
+
+    waiterAssignSelf.addEventListener('click', ()=>{
+      const selectedTableCard = waiterTables.querySelector('.border-fuchsia-400');
+      if (!currentWaiterId) return alert('Select your name first.');
+      if (!selectedTableCard) return alert('Select a table card first.');
+      const tableId = selectedTableCard.getAttribute('data-table-id');
+      const t = getTable(tableId);
+      t.waiterId = currentWaiterId;
+      save(db); renderAll();
+      alert('Assigned!');
+    });
+
+    function renderWaiterTop() {
+      const waiters = db.staff.filter(s=>s.role==='Waiter');
+      waiterSelect.innerHTML = ['<option value="">-- Select waiter --</option>', ...waiters.map(w=>`<option value="${w.id}">${w.name}</option>`)].join('');
+      if (currentWaiterId) waiterSelect.value = currentWaiterId;
+      waiterSelect.onchange = ()=>{ 
+        currentWaiterId = waiterSelect.value || null; 
+        // Auto-highlight tables for this waiter
+        renderAll();
+        const myTables = db.tables.filter(t=>t.waiterId===currentWaiterId).map(t=>t.id);
+        waiterTables.querySelectorAll('[data-table-id]').forEach(c=>{
+          const id = c.getAttribute('data-table-id');
+          if (myTables.includes(id)) c.classList.add('border-fuchsia-400'); else c.classList.remove('border-fuchsia-400');
+        });
+      };
+    }
+
+    function renderWaiterTables() {
+      const rows = db.tables.slice();
+      waiterTables.innerHTML = rows.map(t=>{
+        const waiter = t.waiterId ? (getStaff(t.waiterId)?.name || '—') : 'Unassigned';
+        const statusColor = {
+          'Free':'bg-emerald-500/20 text-emerald-200',
+          'Seated':'bg-amber-500/20 text-amber-200',
+          'Ordering':'bg-fuchsia-500/20 text-fuchsia-200',
+          'Sent':'bg-indigo-500/20 text-indigo-200',
+          'Cooking':'bg-indigo-500/20 text-indigo-200',
+          'Ready':'bg-emerald-500/20 text-emerald-200',
+          'Served':'bg-sky-500/20 text-sky-200',
+          'Billed':'bg-purple-500/20 text-purple-200'
+        }[t.status] || 'bg-white/10';
+        return `
+          <div class="glass rounded-2xl border border-white/10 p-4 cursor-pointer hover:border-fuchsia-400" data-table-id="${t.id}">
+            <div class="flex items-center justify-between">
+              <div class="font-semibold">${t.name} • ${t.seats} seats</div>
+              <span class="text-xs px-2 py-0.5 rounded-full ${statusColor}">${t.status}</span>
+            </div>
+            <div class="text-sm text-slate-300 mt-1">Waiter: ${waiter}</div>
+            <div class="mt-3 grid grid-cols-2 gap-2">
+              <button class="btn px-3 py-2 rounded-lg bg-white/10 pop" data-seat="${t.id}">Seated</button>
+              <button class="btn px-3 py-2 rounded-lg bg-white/10 pop" data-free="${t.id}">Free</button>
+              <button class="btn px-3 py-2 rounded-lg bg-white/10 pop" data-bill="${t.id}">Request Bill</button>
+              <button class="btn px-3 py-2 rounded-lg bg-white/10 pop" data-send="${t.id}">Send New Orders to Kitchen</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+      waiterTables.querySelectorAll('[data-table-id]').forEach(card=>{
+        card.addEventListener('click', (e)=>{
+          waiterTables.querySelectorAll('.border-fuchsia-400').forEach(c=>c.classList.remove('border-fuchsia-400'));
+          card.classList.add('border-fuchsia-400');
+        });
+      });
+      waiterTables.querySelectorAll('[data-seat]').forEach(b=>b.addEventListener('click', ()=>{
+        const t = getTable(b.getAttribute('data-seat')); t.status='Seated'; save(db); renderAll();
+      }));
+      waiterTables.querySelectorAll('[data-free]').forEach(b=>b.addEventListener('click', ()=>{
+        const t = getTable(b.getAttribute('data-free')); t.status='Free'; save(db); renderAll();
+      }));
+      waiterTables.querySelectorAll('[data-bill]').forEach(b=>b.addEventListener('click', ()=>{
+        const t = getTable(b.getAttribute('data-bill')); t.status='Billed'; save(db); renderAll();
+      }));
+      waiterTables.querySelectorAll('[data-send]').forEach(b=>b.addEventListener('click', ()=>{
+        const tableId = b.getAttribute('data-send');
+        const pending = db.orders.filter(o=>o.tableId===tableId && o.status==='New');
+        if (!pending.length) return alert('No new orders to send.');
+        pending.forEach(o=>updateOrderStatus(o.id,'Sent to Kitchen'));
+        const t = getTable(tableId); t.status='Sent'; save(db); renderAll();
+      }));
+    }
+
+    function renderWaiterOrders() {
+      let orders = db.orders.slice();
+      if (currentWaiterId) {
+        const myTables = db.tables.filter(t=>t.waiterId===currentWaiterId).map(t=>t.id);
+        orders = orders.filter(o=>myTables.includes(o.tableId));
+      }
+      if (waiterFilter!=='All') orders = orders.filter(o=>o.status===waiterFilter);
+      waiterOrders.innerHTML = orders.slice(0,24).map(o=>{
+        const t = getTable(o.tableId);
+        const items = o.items.map(i=> `${getDish(i.dishId)?.name||'Item'} × ${i.qty}`).join(', ');
+        const actions = (()=> {
+          if (o.status==='Ready') return `<button class="btn px-3 py-2 rounded-lg bg-emerald-600 pop" data-serve="${o.id}">Mark Served</button>`;
+          if (o.status==='Served') return `<button class="btn px-3 py-2 rounded-lg bg-purple-600 pop" data-paid="${o.id}">Mark Paid</button>`;
+          if (o.status==='New') return `<button class="btn px-3 py-2 rounded-lg bg-indigo-600 pop" data-sendk="${o.id}">Send to Kitchen</button>`;
+          return `<span class="text-slate-300 text-sm">No action</span>`;
+        })();
+        return `
+          <div class="glass rounded-2xl border border-white/10 p-4">
+            <div class="flex items-center justify-between">
+              <div class="font-semibold">Order ${o.id.toUpperCase()}</div>
+              <div class="text-xs px-2 py-0.5 rounded-full bg-white/10">${o.status}</div>
+            </div>
+            <div class="text-sm text-slate-300 mt-1">Table: ${t?.name||o.tableId}</div>
+            <div class="text-sm mt-2">${items}</div>
+            <div class="mt-3">${actions}</div>
+          </div>
+        `;
+      }).join('');
+      waiterOrders.querySelectorAll('[data-serve]').forEach(b=>b.addEventListener('click', ()=>{
+        updateOrderStatus(b.getAttribute('data-serve'),'Served'); save(db); renderAll();
+      }));
+      waiterOrders.querySelectorAll('[data-paid]').forEach(b=>b.addEventListener('click', ()=>{
+        const id = b.getAttribute('data-paid');
+        updateOrderStatus(id,'Paid'); 
+        const o = db.orders.find(x=>x.id===id);
+        const t = getTable(o.tableId); t.status='Free';
+        save(db); renderAll();
+      }));
+      waiterOrders.querySelectorAll('[data-sendk]').forEach(b=>b.addEventListener('click', ()=>{
+        updateOrderStatus(b.getAttribute('data-sendk'),'Sent to Kitchen'); 
+        const o = db.orders.find(x=>x.id===b.getAttribute('data-sendk'));
+        const t = getTable(o.tableId); t.status='Sent';
+        save(db); renderAll();
+      }));
+    }
+
+    // Chef panel
+    let chefTab = 'queue'; // queue|cooking|ready
+    document.querySelectorAll('[data-chef-tab]').forEach(b=>b.addEventListener('click', ()=>{
+      chefTab = b.getAttribute('data-chef-tab');
+      // Visually highlight the active tab
+      document.querySelectorAll('[data-chef-tab]').forEach(x=>x.classList.remove('bg-white/20'));
+      b.classList.add('bg-white/20');
+      renderChefTickets();
+    }));
+
+    function renderChefTickets() {
+      let orders = db.orders.filter(o=>['Sent to Kitchen','Cooking','Ready'].includes(o.status));
+      if (chefTab==='queue') orders = orders.filter(o=>o.status==='Sent to Kitchen');
+      if (chefTab==='cooking') orders = orders.filter(o=>o.status==='Cooking');
+      if (chefTab==='ready') orders = orders.filter(o=>o.status==='Ready');
+
+      const box = document.getElementById('chefTickets');
+      box.innerHTML = orders.map(o=>{
+        const t = getTable(o.tableId);
+        const items = o.items.map(i=>`<li class="flex items-center justify-between"><span>${getDish(i.dishId)?.emoji||'🍽️'} ${getDish(i.dishId)?.name||'Item'}</span><span class="text-slate-300">× ${i.qty}</span></li>`).join('');
+        const actions = (()=> {
+          if (o.status==='Sent to Kitchen') return `<button class="btn px-3 py-2 rounded-lg bg-amber-600 pop" data-start="${o.id}">Start Cooking</button>`;
+          if (o.status==='Cooking') return `<button class="btn px-3 py-2 rounded-lg bg-emerald-600 pop" data-ready="${o.id}">Mark Ready</button>`;
+          return `<span class="text-slate-300 text-sm">Waiting pickup</span>`;
+        })();
+        return `
+          <div class="glass rounded-2xl border border-white/10 p-4">
+            <div class="flex items-center justify-between">
+              <div class="font-semibold">Ticket ${o.id.toUpperCase()}</div>
+              <div class="text-xs px-2 py-0.5 rounded-full bg-white/10">${o.status}</div>
+            </div>
+            <div class="text-sm text-slate-300 mt-1">Table: ${t?.name||o.tableId}</div>
+            <ul class="mt-2 space-y-1">${items}</ul>
+            <div class="mt-3">${actions}</div>
+          </div>
+        `;
+      }).join('');
+
+      box.querySelectorAll('[data-start]').forEach(b=>b.addEventListener('click', ()=>{
+        updateOrderStatus(b.getAttribute('data-start'),'Cooking'); 
+        const o = db.orders.find(x=>x.id===b.getAttribute('data-start'));
+        const t = getTable(o.tableId); t.status='Cooking';
+        save(db); renderAll();
+      }));
+      box.querySelectorAll('[data-ready]').forEach(b=>b.addEventListener('click', ()=>{
+        updateOrderStatus(b.getAttribute('data-ready'),'Ready'); 
+        const o = db.orders.find(x=>x.id===b.getAttribute('data-ready'));
+        const t = getTable(o.tableId); t.status='Ready';
+        save(db); renderAll();
+      }));
+
+      // Table tracking for Chef
+      const track = document.getElementById('chefTableTracking');
+      track.innerHTML = db.tables.map(t=>{
+        const color = {
+          'Free':'bg-emerald-500/20 text-emerald-200',
+          'Seated':'bg-amber-500/20 text-amber-200',
+          'Ordering':'bg-fuchsia-500/20 text-fuchsia-200',
+          'Sent':'bg-indigo-500/20 text-indigo-200',
+          'Cooking':'bg-indigo-500/20 text-indigo-200',
+          'Ready':'bg-emerald-500/20 text-emerald-200',
+          'Served':'bg-sky-500/20 text-sky-200',
+          'Billed':'bg-purple-500/20 text-purple-200'
+        }[t.status] || 'bg-white/10';
+        const waiter = t.waiterId ? (getStaff(t.waiterId)?.name || '—') : '—';
+        return `
+          <div class="glass rounded-xl border border-white/10 p-3">
+            <div class="flex items-center justify-between">
+              <div class="font-semibold">${t.name}</div>
+              <span class="text-xs px-2 py-0.5 rounded-full ${color}">${t.status}</span>
+            </div>
+            <div class="text-xs text-slate-300 mt-1">Waiter: ${waiter}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Supervisor
+    function renderSupervisor() {
+      document.getElementById('svActiveTables').textContent = db.tables.filter(t=>t.status!=='Free').length;
+      document.getElementById('svKitchenOrders').textContent = db.orders.filter(o=>['Sent to Kitchen','Cooking'].includes(o.status)).length;
+      document.getElementById('svReadyOrders').textContent = db.orders.filter(o=>o.status==='Ready').length;
+
+      const svWaiterStatus = document.getElementById('svWaiterStatus');
+      const waiters = db.staff.filter(s=>s.role==='Waiter');
+      svWaiterStatus.innerHTML = waiters.map(w=>{
+        const myTables = db.tables.filter(t=>t.waiterId===w.id);
+        const openOrders = db.orders.filter(o=>{
+          const t = getTable(o.tableId);
+          return t?.waiterId===w.id && ['New','Sent to Kitchen','Cooking','Ready','Served'].includes(o.status);
+        }).length;
+        return `
+          <div class="glass rounded-xl border border-white/10 p-4">
+            <div class="font-semibold">${w.name}</div>
+            <div class="text-sm text-slate-300">${myTables.length} tables</div>
+            <div class="mt-2 text-sm">Open orders: <span class="font-semibold">${openOrders}</span></div>
+          </div>
+        `;
+      }).join('');
+
+      const svTableTracking = document.getElementById('svTableTracking');
+      svTableTracking.innerHTML = db.tables.map(t=>{
+        const waiter = t.waiterId ? (getStaff(t.waiterId)?.name || '—') : '—';
+        return `
+          <div class="glass rounded-xl border border-white/10 p-4">
+            <div class="flex items-center justify-between">
+              <div class="font-semibold">${t.name} • ${t.seats} seats</div>
+              <span class="text-xs px-2 py-0.5 rounded-full bg-white/10">${t.status}</span>
+            </div>
+            <div class="text-xs text-slate-300 mt-1">Waiter: ${waiter}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Admin
+    const adminTabs = {
+      dishes: document.getElementById('adminDishes'),
+      staff: document.getElementById('adminStaff'),
+      tables: document.getElementById('adminTables'),
+      orders: document.getElementById('adminOrders'),
+    };
+    function showAdminTab(name) {
+      Object.entries(adminTabs).forEach(([k,el])=>{
+        if (k===name) el.classList.remove('hidden'); else el.classList.add('hidden');
+      });
+    }
+    document.querySelectorAll('[data-admin-tab]').forEach(b=>b.addEventListener('click', ()=>showAdminTab(b.getAttribute('data-admin-tab'))));
+    showAdminTab('dishes');
+
+    // Admin: Dishes
+    const dishList = document.getElementById('dishList');
+    const dishCount = document.getElementById('dishCount');
+    document.getElementById('dishForm').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const file = document.getElementById('dishImage').files[0];
+      let imageData = '';
+      if (file) {
+        imageData = await new Promise((res, rej)=>{
+          const reader = new FileReader();
+          reader.onload = ()=>res(reader.result);
+          reader.onerror = ()=>res('');
+          reader.readAsDataURL(file);
+        });
+      }
+      const dish = {
+        id: uid('d'),
+        name: document.getElementById('dishName').value.trim(),
+        price: Number(document.getElementById('dishPrice').value),
+        category: document.getElementById('dishCategory').value.trim()||'Other',
+        desc: document.getElementById('dishDesc').value.trim(),
+        veg: document.getElementById('dishVeg').value==='true',
+        spicy: document.getElementById('dishSpicy').value==='true',
+        emoji: document.getElementById('dishEmoji').value.trim() || '🍽️',
+        image: imageData
+      };
+      if (!dish.name || isNaN(dish.price)) return alert('Please fill name and price.');
+      db.dishes.push(dish); save(db); e.target.reset(); renderAll();
+    });
+
+    function renderAdminDishes() {
+      dishCount.textContent = db.dishes.length + ' total';
+      dishList.innerHTML = db.dishes.map(d=>`
+        <div class="glass rounded-xl border border-white/10 p-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <div class="text-2xl">${d.emoji||'🍽️'}</div>
+              <div>
+                <div class="font-semibold">${d.name}</div>
+                <div class="text-sm text-slate-300">${d.category} • ${currency(d.price)}</div>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button class="btn px-3 py-1 rounded-lg bg-white/10 pop" data-edit-dish="${d.id}">Edit</button>
+              <button class="btn px-3 py-1 rounded-lg bg-rose-600 pop" data-del-dish="${d.id}">Delete</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+      dishList.querySelectorAll('[data-del-dish]').forEach(b=>b.addEventListener('click', ()=>{
+        const id = b.getAttribute('data-del-dish');
+        db.dishes = db.dishes.filter(x=>x.id!==id); save(db); renderAll();
+      }));
+      dishList.querySelectorAll('[data-edit-dish]').forEach(b=>b.addEventListener('click', ()=>{
+        const id = b.getAttribute('data-edit-dish'); const d = getDish(id);
+        const name = prompt('Dish name', d.name); if (name===null) return;
+        const price = parseFloat(prompt('Price', d.price)); if (isNaN(price)) return;
+        const cat = prompt('Category', d.category) || d.category;
+        d.name=name; d.price=price; d.category=cat; save(db); renderAll();
+      }));
+    }
+
+    // Admin: Staff
+    const staffList = document.getElementById('staffList');
+    const staffCount = document.getElementById('staffCount');
+    document.getElementById('staffForm').addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const s = {
+        id: uid('s'),
+        name: document.getElementById('staffName').value.trim(),
+        role: document.getElementById('staffRole').value,
+        contact: document.getElementById('staffContact').value.trim(),
+        active:true
+      };
+      if (!s.name) return alert('Enter a name.');
+      db.staff.push(s); save(db); e.target.reset(); renderAll();
+    });
+
+    function renderAdminStaff() {
+      staffCount.textContent = db.staff.length + ' total';
+      staffList.innerHTML = db.staff.map(s=>`
+        <div class="glass rounded-xl border border-white/10 p-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="font-semibold">${s.name}</div>
+              <div class="text-sm text-slate-300">${s.role}${s.contact? ' • '+s.contact:''}</div>
+            </div>
+            <div class="flex gap-2">
+              <button class="btn px-3 py-1 rounded-lg bg-white/10 pop" data-toggle-staff="${s.id}">${s.active?'Deactivate':'Activate'}</button>
+              <button class="btn px-3 py-1 rounded-lg bg-rose-600 pop" data-del-staff="${s.id}">Remove</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+      staffList.querySelectorAll('[data-toggle-staff]').forEach(b=>b.addEventListener('click', ()=>{
+        const id = b.getAttribute('data-toggle-staff'); const s = getStaff(id);
+        s.active = !s.active; save(db); renderAll();
+      }));
+      staffList.querySelectorAll('[data-del-staff]').forEach(b=>b.addEventListener('click', ()=>{
+        const id = b.getAttribute('data-del-staff');
+        if (!confirm('Remove this staff member?')) return;
+        db.tables.forEach(t=>{ if (t.waiterId===id) t.waiterId = null; });
+        db.staff = db.staff.filter(x=>x.id!==id); save(db); renderAll();
+      }));
+    }
+
+    // Admin: Tables
+    const tableList = document.getElementById('tableList');
+    const tableCount = document.getElementById('tableCount');
+    const tableWaiterSelect = document.getElementById('tableWaiter');
+
+    function renderAdminTables() {
+      const waiters = db.staff.filter(s=>s.role==='Waiter' && s.active);
+      tableWaiterSelect.innerHTML = ['<option value="">Assign waiter (optional)</option>', ...waiters.map(w=>`<option value="${w.id}">${w.name}</option>`)].join('');
+      tableCount.textContent = db.tables.length + ' total';
+      tableList.innerHTML = db.tables.map(t=>{
+        const waiter = t.waiterId ? (getStaff(t.waiterId)?.name || '—') : '—';
+        return `
+          <div class="glass rounded-xl border border-white/10 p-3">
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="font-semibold">${t.name} • ${t.seats} seats</div>
+                <div class="text-sm text-slate-300">Waiter: ${waiter}</div>
+              </div>
+              <div class="flex gap-2">
+                <button class="btn px-3 py-1 rounded-lg bg-white/10 pop" data-edit-table="${t.id}">Edit</button>
+                <button class="btn px-3 py-1 rounded-lg bg-rose-600 pop" data-del-table="${t.id}">Remove</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+      tableList.querySelectorAll('[data-edit-table]').forEach(b=>b.addEventListener('click', ()=>{
+        const t = getTable(b.getAttribute('data-edit-table'));
+        const name = prompt('Table name', t.name); if (name===null) return;
+        const seats = parseInt(prompt('Seats', t.seats), 10); if (isNaN(seats)||seats<1) return;
+        const waiterNameList = db.staff.filter(s=>s.role==='Waiter').map(s=>s.name).join(', ');
+        const waiterName = prompt('Assign waiter by name (blank to clear). Available: '+waiterNameList, getStaff(t.waiterId)?.name||'') || '';
+        let waiterId = null;
+        if (waiterName.trim()) {
+          const found = db.staff.find(s=>s.name.toLowerCase()===waiterName.toLowerCase() && s.role==='Waiter');
+          if (found) waiterId = found.id; else alert('Waiter not found, clearing assignment.');
+        }
+        t.name=name; t.seats=seats; t.waiterId=waiterId; save(db); renderAll();
+      }));
+      tableList.querySelectorAll('[data-del-table]').forEach(b=>b.addEventListener('click', ()=>{
+        const id = b.getAttribute('data-del-table');
+        if (!confirm('Remove table?')) return;
+        db.tables = db.tables.filter(x=>x.id!==id);
+        db.orders = db.orders.filter(o=>o.tableId!==id);
+        save(db); renderAll();
+      }));
+    }
+
+    document.getElementById('tableForm').addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const name = document.getElementById('tableName').value.trim();
+      const seats = parseInt(document.getElementById('tableSeats').value, 10);
+      const waiterId = document.getElementById('tableWaiter').value || null;
+      if (!name || isNaN(seats) || seats<1) return alert('Provide table name and seats.');
+      db.tables.push({id:uid('t'), name, seats, status:'Free', waiterId});
+      save(db); e.target.reset(); renderAll();
+    });
+
+    // Admin: Orders
+    const adminOrderList = document.getElementById('adminOrderList');
+    const adminOrderFilter = document.getElementById('adminOrderFilter');
+    adminOrderFilter.addEventListener('change', renderAdminOrders);
+    const adminStartDate = document.getElementById('adminStartDate');
+    const adminEndDate = document.getElementById('adminEndDate');
+    adminStartDate.addEventListener('change', renderAdminOrders);
+    adminEndDate.addEventListener('change', renderAdminOrders);
+
+    function renderAdminOrders() {
+      let orders = db.orders.slice();
+      const f = adminOrderFilter.value;
+      // Date range filter
+      const sVal = (document.getElementById('adminStartDate')?.value)||'';
+      const eVal = (document.getElementById('adminEndDate')?.value)||'';
+      const start = sVal ? new Date(sVal + 'T00:00:00') : null;
+      const end = eVal ? new Date(eVal + 'T23:59:59') : null;
+      if (start) orders = orders.filter(o=> new Date(o.createdAt) >= start);
+      if (end) orders = orders.filter(o=> new Date(o.createdAt) <= end);
+      if (f!=='All') orders = orders.filter(o=>o.status===f);
+      adminOrderList.innerHTML = orders.map(o=>{
+        const t = getTable(o.tableId);
+        const items = o.items.map(i=> `${getDish(i.dishId)?.name||'Item'} × ${i.qty}`).join(', ');
+        return `
+          <div class="glass rounded-xl border border-white/10 p-3">
+            <div class="flex items-center justify-between">
+              <div class="font-semibold">Order ${o.id.toUpperCase()}</div>
+              <div class="text-xs px-2 py-0.5 rounded-full bg-white/10">${o.status}</div>
+            </div>
+            <div class="text-sm text-slate-300 mt-1">Table: ${t?.name||o.tableId} • ${new Date(o.createdAt).toLocaleString()}</div>
+            <div class="text-sm mt-2">${items}</div>
+            <div class="mt-3 flex flex-wrap gap-2">
+              <button class="btn px-3 py-1 rounded-lg bg-white/10 pop" data-astatus="${o.id}" data-to="Cancelled">Cancel</button>
+              <button class="btn px-3 py-1 rounded-lg bg-white/10 pop" data-astatus="${o.id}" data-to="Paid">Mark Paid</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+      adminOrderList.querySelectorAll('[data-astatus]').forEach(b=>b.addEventListener('click', ()=>{
+        const id = b.getAttribute('data-astatus');
+        const to = b.getAttribute('data-to');
+        updateOrderStatus(id, to);
+        if (to==='Paid') { const o = db.orders.find(x=>x.id===id); const t = getTable(o.tableId); t.status='Free'; }
+        save(db); renderAll();
+      }));
+    }
+
+    document.getElementById('exportCSV').addEventListener('click', ()=>{
+      const header = ['id','table','status','createdAt','items'];
+      const rows = db.orders.map(o=>{
+        const t = getTable(o.tableId)?.name || o.tableId;
+        const items = o.items.map(i=>`${getDish(i.dishId)?.name||'Item'}×${i.qty}`).join('|');
+        return [o.id, t, o.status, o.createdAt, JSON.stringify(items)];
+      });
+      const csv = [header, ...rows].map(r=>r.map(v=>`"${String(v).replaceAll('"','""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], {type:'text/csv'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href=url; a.download='orders.csv'; a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    // Update order status helper
+    function updateOrderStatus(orderId, status) {
+      const o = db.orders.find(x=>x.id===orderId);
+      if (!o) return;
+      o.status = status;
+      o.history.push({status, at: now()});
+    }
+
+    // Initial renders
+    function renderMenu() {
+      renderMenuFilters();
+      renderMenuGrid();
+      renderCart();
+    }
+
+    function renderWaiter() {
+      renderWaiterTop();
+      renderWaiterTables();
+      renderWaiterOrders();
+    }
+
+    function renderAdmin() {
+      renderAdminDishes();
+      renderAdminStaff();
+      renderAdminTables();
+      renderAdminOrders();
+    }
+
+    function renderAll() {
+      renderMenu();
+      renderWaiter();
+      renderChefTickets();
+      renderSupervisor();
+      renderAdmin();
+      // Also refresh shared selects
+      renderMenuFilters();
+    }
+
+    // Start
+    showPanel('menu');
+    renderAll();
+  </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'99846a8926256ed1',t:'MTc2MjA5NDczMi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
